@@ -117,63 +117,76 @@ parent_graph.add_node("legal_expert", rag_node)
 
 ---
 
-## 🚀 快速開始
+## 🚀 Quick Start
 
-### 1. 環境需求
+Follow these steps to get the system running.
 
-- Python 3.9+
-- Docker & Docker Compose（資料庫）
-- 8GB+ RAM（建議）
+### 1. Prerequisites
 
-### 2. 安裝依賴
+Ensure you have the following software installed:
+- **Python**: 3.9 or newer.
+- **Docker & Docker Compose**: For running the PostgreSQL database.
+
+### 2. Environment & Dependencies
+
+First, clone the repository and navigate into the project directory.
 
 ```bash
-# 克隆專案
-git clone <your-repo-url>
-cd RAG
-
-# 建立虛擬環境
-python -m venv venv
-source venv/bin/activate  # Linux/macOS
-# venv\Scripts\activate   # Windows
-
-# 安裝套件
-pip install -r requirements.txt
+git clone <your-repo-url> && cd RAG
 ```
 
-### 3. 設定環境變數
+This project requires its own isolated environment to avoid conflicts with system-wide packages. The following commands will create a virtual environment and install all necessary dependencies from `requirements.txt`.
 
 ```bash
-# 複製範本
+# Create and activate a virtual environment.
+python3 -m venv venv
+source venv/bin/activate
+
+# Install all required packages.
+pip install -r requirements.txt
+```
+> **Note:** For Windows, activate the environment using `venv\Scripts\activate`.
+
+### 3. Application Configuration
+
+Copy the example environment file and fill in your API credentials. This file stores sensitive keys and is ignored by Git.
+
+```bash
+# Create the .env file from the template.
 cp .env.example .env
 
-# 編輯 .env，填入你的 API 設定
+# Edit the file with your preferred editor.
 nano .env
 ```
 
-**必要設定**：
+At a minimum, you must provide `EMBED_API_KEY` and `EMBED_API_BASE`.
+
 ```bash
 PGVECTOR_URL="postgresql+psycopg2://postgres:postgres@localhost:5433/postgres"
-EMBED_API_KEY=your_embedding_api_key
-EMBED_API_BASE=http://your-api-server/v1
-EMBED_MODEL_NAME=nvidia/nv-embed-v2
-CHAT_MODEL_NAME=openai/gpt-oss-20b
+EMBED_API_KEY="your_api_key_here"
+EMBED_API_BASE="http://your_api_server/v1"
+EMBED_MODEL_NAME="nvidia/nv-embed-v2"
+CHAT_MODEL_NAME="openai/gpt-oss-20b"
 ```
 
-### 4. 啟動資料庫
+### 4. Database Setup
+
+The vector database runs in a Docker container. Start it with Docker Compose.
 
 ```bash
-cd rag_system
-docker compose up -d pgvector
+# Start the PostgreSQL service in the background.
+docker compose up -d
 ```
 
-驗證資料庫狀態：
+To verify that the database is running correctly:
+
 ```bash
 docker compose ps
-# 應該看到 rag_db 容器處於 Up (healthy) 狀態
 ```
 
-**詳細資料庫設定請參考 [docs/DB_SETUP.md](docs/DB_SETUP.md)**
+You should see a service named `rag-db` or `pgvector` with the status `Up (healthy)`.
+
+**For detailed database setup instructions, see [docs/DB_SETUP.md](docs/DB_SETUP.md).**
 
 ---
 
