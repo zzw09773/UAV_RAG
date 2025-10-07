@@ -98,22 +98,13 @@ RAG/
 - ✨ **範例程式** - 多代理協同系統展示
 - 📚 **文件整理** - 所有文件集中於 `docs/` 目錄
 
-### 整合到大型系統
+### Integrating with a Supervisor Agent
 
-如果你想將此 RAG agent 整合到大型多代理系統：
+This RAG agent is designed to function as a self-contained subgraph within a larger multi-agent system (e.g., a "supervisor" agent).
 
-```python
-from rag_system.subgraph import create_rag_subgraph
-from rag_system.config import RAGConfig
+For detailed instructions on configuration, instantiation, and data flow, please refer to the complete integration guide:
 
-# 建立 RAG subgraph
-rag_node = create_rag_subgraph(llm, RAGConfig.from_env())
-
-# 加入你的 parent graph
-parent_graph.add_node("legal_expert", rag_node)
-```
-
-詳細指南請參考: [docs/AGENT_ARCHITECTURE.md](docs/AGENT_ARCHITECTURE.md) 第 411 行起的「Subgraph 整合指南」
+**📖 [Subgraph Integration Guide](docs/SUBGRAPH_INTEGRATION.md)**
 
 ---
 
