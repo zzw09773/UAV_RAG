@@ -179,7 +179,7 @@ def example_function(param1: str, param2: int) -> dict:
 ### DATCOM 相關
 - DATCOM 是美國空軍的空氣動力學分析工具
 - 主要用於 UAV 戰機設計的氣動分析
-- 輸入檔案: `for005.dat`
+- 輸入檔案: `DATCOM.dat`
 - 輸出檔案: `datcom.out`
 - 關鍵參數: Namelist 格式 ($FLTCON, $WGPLNF 等)
 

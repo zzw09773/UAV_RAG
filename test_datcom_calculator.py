@@ -41,8 +41,8 @@ def print_result(tool_name: str, result: dict):
         else:
             main_params[k] = v
     
-    # 顯示主要參數 (用於 for005.dat)
-    print("📋 DATCOM 參數 (for005.dat):")
+    # 顯示主要參數 (用於 DATCOM.dat)
+    print("📋 DATCOM 參數 (DATCOM.dat):")
     for k, v in main_params.items():
         if isinstance(v, (int, float)):
             print(f"  {k:12} = {v}")
@@ -189,7 +189,7 @@ def test_f4_phantom():
     print(f"""
 ✅ 所有工具測試完成!
 
-生成的參數可用於構建完整的 F-4 Phantom II for005.dat 檔案:
+生成的參數可用於構建完整的 F-4 Phantom II DATCOM.dat 檔案:
 
 CASEID F-4 PHANTOM II
 $FLTCON

@@ -131,7 +131,7 @@ def convert_wing_to_datcom(
         sweep_location: 後掠角量測位置 (弦長百分比, 預設 0.25 為四分之一弦長)
     
     Returns:
-        包含 DATCOM $WGPLNF 參數的字典，可直接用於生成 for005.dat
+        包含 DATCOM $WGPLNF 參數的字典，可直接用於生成 DATCOM.dat
     
     Examples:
         F-4 Phantom II 機翼:

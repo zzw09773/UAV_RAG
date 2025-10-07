@@ -5,7 +5,7 @@
 基於「DATCOM 參數解析與轉換.md」文件，我們實現了完整的 DATCOM 參數計算與轉換工具集，使 RAG 系統能夠:
 
 1. **將標準空氣動力學參數轉換為 DATCOM 格式**
-2. **生成完整的 for005.dat 輸入檔案**
+2. **生成完整的 DATCOM.dat 輸入檔案**
 3. **驗證參數的合理性與一致性**
 
 ## 實現的工具
@@ -119,10 +119,10 @@ SAVSI  = 45.0°
 MAC    = 15.09 ft
 ```
 
-### 範例 2: 完整 for005.dat 生成
+### 範例 2: 完整 DATCOM.dat 生成
 
 ```bash
-./query.sh "根據以下參數為 F-4 生成 DATCOM for005.dat: 
+./query.sh "根據以下參數為 F-4 生成 DATCOM DATCOM.dat: 
 機翼 S=530 ft², A=2.8, λ=0.3, 後掠角45°。
 飛行條件: Mach 0.8, 高度10000 ft, 攻角-2到10度每2度, 重量40000 lbs。
 機身長度63 ft, 最大直徑3 ft。
@@ -133,7 +133,7 @@ XCG=25 ft, XW=18.5 ft, XH=49 ft, XV=45 ft。"
 1. 調用 `convert_wing_to_datcom` 計算機翼參數
 2. 調用 `generate_fltcon_matrix` 生成飛行條件
 3. 調用 `define_body_geometry` 定義機身幾何
-4. 從資料庫檢索 for005.dat 模板範例
+4. 從資料庫檢索 DATCOM.dat 模板範例
 5. 組合所有參數生成完整檔案
 
 ## 設計哲學
@@ -185,7 +185,7 @@ python test_datcom_calculator.py
 ./query.sh "使用 convert_wing_to_datcom 計算..."
 
 # 測試完整生成
-./query.sh "生成 F-4 的 for005.dat..."
+./query.sh "生成 F-4 的 DATCOM.dat..."
 ```
 
 ## 與 Roadmap 的對應
@@ -207,7 +207,7 @@ python test_datcom_calculator.py
 4. **無自動參數推算**: 缺失參數需要使用者提供或從文檔檢索
 
 ### 改進方向 (Phase 2-3)
-1. **模板生成器**: 直接輸出完整的 for005.dat 文本
+1. **模板生成器**: 直接輸出完整的 DATCOM.dat 文本
 2. **參數推算**: 使用典型戰機比例關係填補缺失參數
 3. **幾何驗證**: 整合視覺化工具
 4. **批次分析**: 支援參數掃描研究
