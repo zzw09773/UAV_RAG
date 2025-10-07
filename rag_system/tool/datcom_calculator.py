@@ -61,7 +61,7 @@ def convert_wing_to_datcom(
     airfoil: str = "2412",
     dihedral: float = 0.0,
     twist: float = 0.0,
-    sweep_location: float = 0.25
+    sweep_location: float = 0.0
 ) -> Dict[str, Any]:
     """Converts standard wing parameters (area, aspect ratio, taper ratio, sweep) to DATCOM's $WGPLNF namelist format.
 
@@ -73,7 +73,7 @@ def convert_wing_to_datcom(
         airfoil: (Optional) NACA airfoil designation. Defaults to "2412".
         dihedral: (Optional) Dihedral angle (degrees). Defaults to 0.0.
         twist: (Optional) Twist angle (degrees, negative for washout). Defaults to 0.0.
-        sweep_location: (Optional) Chordwise location for sweep measurement (percent). Defaults to 0.25.
+        sweep_location: (Optional) Chordwise location for sweep measurement (percent). Defaults to 0.0.
 
     Returns:
         A dictionary containing DATCOM $WGPLNF parameters.
@@ -165,7 +165,7 @@ def convert_tail_to_datcom(
         "SSPN": round(SSPN, 2),
         "SSPNE": round(SSPN, 2),
         "SAVSI": round(sweep_angle, 1),
-        "CHSTAT": 0.25,
+        "CHSTAT": 0.0,
         "TYPE": 1.0,
         "DHDADI": 0.0,
         "TWISTA": 0.0,
@@ -253,73 +253,44 @@ def calculate_synthesis_positions(
 
 @tool
 def define_body_geometry(
-    fuselage_length: float,
-    max_diameter: float,
-    nose_length: float,
-    tail_length: float,
-    num_stations: float = 8.0
+    x_coords: List[float],
+    zu_coords: List[float],
+    zl_coords: List[float],
+    method: int = 1
 ) -> Dict[str, Any]:
-    """Defines an axisymmetric fuselage geometry for the DATCOM $BODY namelist.
+    """Defines the fuselage geometry for the DATCOM $BODY namelist using coordinate arrays.
 
     Args:
-        fuselage_length: Total fuselage length (ft).
-        max_diameter: Maximum fuselage diameter (ft).
-        nose_length: Length of the nose cone (ft).
-        tail_length: Length of the tail cone (ft).
-        num_stations: (Optional) Number of stations to define the body. Defaults to 8.0.
+        x_coords: List of longitudinal (X) station coordinates.
+        zu_coords: List of upper surface (ZU) Z-coordinates at each station.
+        zl_coords: List of lower surface (ZL) Z-coordinates at each station.
+        method: (Optional) Aerodynamic method for calculation. Defaults to 1.
 
     Returns:
-        A dictionary containing DATCOM $BODY parameters (X and R arrays).
+        A dictionary containing DATCOM $BODY parameters.
     """
-    log(f"Defining $BODY: length={fuselage_length}, max_dia={max_diameter}")
+    log(f"Defining $BODY with {len(x_coords)} coordinate pairs.")
     
-    num_stations = int(num_stations)
-    if num_stations > 20:
+    if not (len(x_coords) == len(zu_coords) == len(zl_coords)):
+        return {"error": "Input coordinate lists (x_coords, zu_coords, zl_coords) must have the same length."}
+    if len(x_coords) > 20:
         return {"error": "DATCOM supports a maximum of 20 fuselage stations."}
-    if nose_length + tail_length >= fuselage_length:
-        return {"error": "Nose length + tail length cannot exceed total fuselage length."}
-    
-    X_stations: List[float] = []
-    R_stations: List[float] = []
-    
-    max_radius = max_diameter / 2
-    constant_section_start = nose_length
-    constant_section_end = fuselage_length - tail_length
-    
-    for i in range(num_stations):
-        x = (fuselage_length / (num_stations - 1)) * i
-        X_stations.append(round(x, 2))
-        
-        if x <= nose_length:
-            r = max_radius * math.sqrt(x / nose_length)
-        elif x <= constant_section_end:
-            r = max_radius
-        else:
-            fraction = (fuselage_length - x) / tail_length
-            r = max_radius * fraction
-        
-        R_stations.append(round(r, 2))
-    
-    S_stations = [round(math.pi * r**2, 2) for r in R_stations]
-    
+
+    # Calculate radius R for informational purposes, assuming ZU = -ZL for symmetric sections
+    # This is a simplification; for true non-axisymmetric bodies, ZU and ZL are the primary inputs.
+    R_stations = [round((zu - zl) / 2, 3) for zu, zl in zip(zu_coords, zl_coords)]
+
     body_params = {
-        "NX": float(num_stations),
-        "X": X_stations,
-        "R": R_stations,
-        "S": S_stations,
-        "_max_diameter": max_diameter,
-        "_max_radius": max_radius,
-        "_max_cross_section_area": round(math.pi * max_radius**2, 2),
-        "_fineness_ratio": round(fuselage_length / max_diameter, 2),
-        "_geometry": {
-            "total_length": fuselage_length,
-            "nose_length": nose_length,
-            "constant_section": round(constant_section_end - constant_section_start, 2),
-            "tail_length": tail_length
-        }
+        "NX": float(len(x_coords)),
+        "X": x_coords,
+        "ZU": zu_coords,
+        "ZL": zl_coords,
+        "R": R_stations, # For reference, not directly used by DATCOM if ZU/ZL are present
+        "METHOD": method,
+        "ITYPE": 1, # Assuming a standard body type
     }
     
-    log(f"✓ $BODY defined: {num_stations} stations, fineness ratio={body_params['_fineness_ratio']}")
+    log(f"✓ $BODY defined with {body_params['NX']} stations.")
     return body_params
 
 
