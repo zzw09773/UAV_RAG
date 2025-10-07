@@ -20,7 +20,7 @@ from langchain_openai import ChatOpenAI
 from .common import log, set_quiet_mode
 from .state import GraphState
 from .config import RAGConfig, DEFAULT_TOP_K
-from .tool import create_retrieve_tool, create_router_tool, create_metadata_search_tool
+from .tool import create_retrieve_tool, create_router_tool, create_metadata_search_tool, create_datcom_calculator_tools
 from .tool.calculator import create_calculator_tool
 from .tool.shared import get_vectorstore
 from .node import create_agent_node
@@ -118,7 +118,12 @@ class RagApplication:
             conn_str=self.args.conn
         )
         calculator_tool = create_calculator_tool()
-        tools = [router_tool, retrieve_tool, metadata_search_tool, calculator_tool]
+        
+        # Create DATCOM calculator tools
+        datcom_tools = create_datcom_calculator_tools()
+        
+        # Combine all tools
+        tools = [router_tool, retrieve_tool, metadata_search_tool, calculator_tool] + datcom_tools
 
         # Create agent node
         agent_node = create_agent_node(self.llm, tools)

@@ -9,7 +9,7 @@ from langgraph.graph import StateGraph
 
 from .state import GraphState
 from .config import RAGConfig
-from .tool import create_retrieve_tool, create_router_tool, create_metadata_search_tool
+from .tool import create_retrieve_tool, create_router_tool, create_metadata_search_tool, create_datcom_calculator_tools
 from .node import create_agent_node
 from .agent import build_workflow
 from .common import log
@@ -63,7 +63,12 @@ def create_rag_subgraph(
     metadata_search_tool = create_metadata_search_tool(
         conn_str=config.conn_string
     )
-    tools = [router_tool, retrieve_tool, metadata_search_tool]
+    
+    # Create DATCOM calculator tools
+    datcom_tools = create_datcom_calculator_tools()
+    
+    # Combine all tools
+    tools = [router_tool, retrieve_tool, metadata_search_tool] + datcom_tools
 
     # Create agent node
     agent_node = create_agent_node(llm, tools)

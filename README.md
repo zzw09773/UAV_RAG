@@ -1,6 +1,15 @@
 # RAG System with ReAct Agent
 
-一個基於 **ReAct Agent** 架構的智能檢索增強生成（RAG）系統，專門針對繁體中文法規文件優化。系統使用單一 agent node 架構，透過 LangGraph 與 LangChain 實現自主檢索、評估與答案生成。
+一個基於 **ReAct Agent** 架構的智能檢索增強生成（RAG）系統，專門針對 **DATCOM 空氣動力學分析文件**和 **UAV 戰機設計資料**優化。系統使用單一 agent node 架構，透過 LangGraph 與 LangChain 實現自主檢索、評估與答案生成。
+
+---
+
+## 🚀 快速導航
+
+- 📖 **[專案審查報告](docs/PROJECT_AUDIT.md)** - 完整的程式碼審查與品質評估
+- 🗺️ **[發展路線圖](ROADMAP.md)** - v0.4 到 v1.0 的詳細計畫
+- ⚡ **[立即行動指南](QUICK_START.md)** - 第一週的具體任務清單
+- ✈️ **[DATCOM 使用指南](docs/DATCOM_USAGE.md)** - UAV 戰機設計應用說明
 
 ---
 
@@ -13,18 +22,24 @@
 - **LangGraph 編排**：使用 StateGraph 管理狀態與流程
 
 ### 📚 文件處理能力
-- **多格式支援**：PDF、DOCX、RTF、TXT、Markdown
+- **多格式支援**：DOCX、Markdown
 - **智能切塊**：
-  - `law` 策略：針對「第X條」結構優化
-  - `paragraph` 策略：通用段落切分
-  - `smart` 策略：LLM 輔助智能切分
+  - 基於語義邊界切分（章節、段落）
+  - 保留文件結構元數據
+  - Chunk size: 500-1500 字元（可配置）
 - **向量化儲存**：PostgreSQL + PGVector 高效語意搜尋
 
 ### 🗄️ 向量資料庫
 - **PGVector**：PostgreSQL 原生向量擴展
-- **Collection 管理**：支援多個文件集合
+- **Collection 管理**：支援多個設計領域集合
 - **批次處理**：高效索引建立流程
 - **Docker 部署**：一鍵啟動資料庫環境
+
+### ✈️ UAV 戰機設計專用
+- **DATCOM 整合**：支援空氣動力學分析文件
+- **設計領域路由**：智能選擇相關技術領域
+- **公式計算**：內建 Python 計算器處理氣動參數
+- **來源引用**：自動標註文件來源與章節位置
 
 ---
 
@@ -62,8 +77,9 @@ RAG/
     ├── common.py                # 共用工具函數
     │
     ├── tool/                    # Agent 工具模組
-    │   ├── router.py            # Collection 路由
-    │   ├── retrieve.py          # 向量檢索
+    │   ├── router.py            # 設計領域路由
+    │   ├── retrieve.py          # 向量檢索（DATCOM 文件）
+    │   ├── calculator.py        # Python 計算器
     │   ├── article_lookup.py    # 條文精確查詢
     │   └── metadata_search.py   # Metadata 搜尋
     │

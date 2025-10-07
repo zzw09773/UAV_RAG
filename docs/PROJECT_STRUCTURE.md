@@ -25,8 +25,8 @@ RAG/
 │   ├── AGENT_ARCHITECTURE.md       # ReAct Agent 架構詳解
 │   ├── DB_SETUP.md                 # 資料庫設定指南
 │   ├── BUILD_USAGE.md              # 索引建立使用說明
+│   ├── DATCOM_USAGE.md             # DATCOM 整合說明
 │   ├── AGENTS.md                   # Agent 設計說明
-│   ├── GEMINI.md                   # Gemini 模型整合
 │   └── PROJECT_STRUCTURE.md        # 本文件
 │
 ├── 🎯 examples/                    # 使用範例
@@ -88,8 +88,8 @@ RAG/
 | `AGENT_ARCHITECTURE.md` | **核心文件** - ReAct Agent 詳細架構、Subgraph 整合指南 |
 | `DB_SETUP.md` | 資料庫設定、PGVector 安裝、Collection 管理 |
 | `BUILD_USAGE.md` | 如何建立索引、文件處理流程 |
+| `DATCOM_USAGE.md` | DATCOM 整合說明、UAV 戰機設計應用 |
 | `AGENTS.md` | Agent 設計理念與實作細節 |
-| `GEMINI.md` | Google Gemini 模型整合說明 |
 | `PROJECT_STRUCTURE.md` | 本文件 - 專案結構總覽 |
 
 ### 🎯 `examples/` - 範例程式
@@ -213,7 +213,7 @@ parent_graph.add_node("rag_agent", rag_subgraph)
 1. `docs/AGENTS.md` - Agent 設計理念
 2. `rag_system/build/` - 客製化文件處理
 3. `rag_system/config.py` - 配置選項
-4. `docs/GEMINI.md` - 整合其他 LLM
+4. `docs/DATCOM_USAGE.md` - DATCOM 整合與 UAV 應用
 
 ## 🔄 資料流程圖
 
