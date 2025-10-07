@@ -58,8 +58,11 @@ class RagApplication:
         """Initialize the RAG application."""
         self.args = args
 
-        if not all([self.args.conn, self.args.embed_api_base, self.args.embed_api_key]):
-            raise ValueError("Configuration error: Database connection, API base, and API key are required.")
+        # Use the new llm_api_base, fallback to embed_api_base
+        llm_base = getattr(args, 'llm_api_base', None) or args.embed_api_base
+
+        if not all([self.args.conn, self.args.embed_api_base, llm_base, self.args.embed_api_key]):
+            raise ValueError("Configuration error: Database connection, API keys, and base URLs for all models are required.")
 
         if not getattr(args, 'debug', False):
             self._setup_quiet_mode()
@@ -89,10 +92,14 @@ class RagApplication:
             follow_redirects=True,
             timeout=httpx.Timeout(120.0, connect=10.0)
         )
+        # Use the dedicated LLM API base if provided, otherwise fallback to the embedding base
+        api_base = getattr(self.args, 'llm_api_base', None) or self.args.embed_api_base
+        log(f"Initializing ChatOpenAI with API base: {api_base}")
+
         return ChatOpenAI(
             model=self.args.chat_model,
             openai_api_key=self.args.embed_api_key,
-            openai_api_base=self.args.embed_api_base,
+            openai_api_base=api_base,
             temperature=0,
             http_client=client
         )
@@ -175,10 +182,12 @@ def main():
     # --- Environment Variable Debugging ---
     print("--- ENV DEBUG ---")
     pg_url = os.environ.get("PGVECTOR_URL")
-    api_base = os.environ.get("EMBED_API_BASE")
+    embed_base = os.environ.get("EMBED_API_BASE")
+    llm_base = os.environ.get("LLM_API_BASE")
     api_key = os.environ.get("EMBED_API_KEY")
     print(f"PGVECTOR_URL: {pg_url}")
-    print(f"EMBED_API_BASE: {api_base}")
+    print(f"EMBED_API_BASE: {embed_base}")
+    print(f"LLM_API_BASE: {llm_base or embed_base}") # Show fallback
     if api_key:
         print(f"EMBED_API_KEY: ...{api_key[-4:]}")
     else:
@@ -193,8 +202,9 @@ def main():
     parser.add_argument("--collection", default=None, help="(可選) 強制指定設計領域（如『空氣動力學』），繞過路由功能")
     parser.add_argument("--embed_model", default=os.environ.get("EMBED_MODEL_NAME", "nvidia/nv-embed-v2"), help="嵌入模型名稱")
     parser.add_argument("--chat_model", default=os.environ.get("CHAT_MODEL_NAME", "openai/gpt-oss-20b"), help="聊天模型名稱")
-    parser.add_argument("--embed_api_base", default=os.environ.get("EMBED_API_BASE"), help="API base URL")
-    parser.add_argument("--embed_api_key", default=os.environ.get("EMBED_API_KEY"), help="API key")
+    parser.add_argument("--embed_api_base", default=os.environ.get("EMBED_API_BASE"), help="Embedding model API base URL")
+    parser.add_argument("--llm_api_base", default=os.environ.get("LLM_API_BASE"), help="LLM/Chat model API base URL. Falls back to embed_api_base if not set.")
+    parser.add_argument("--embed_api_key", default=os.environ.get("EMBED_API_KEY"), help="API key for both services")
     parser.add_argument("--no-verify-ssl", action="store_true", help="停用 SSL 憑證驗證")
 
     # Query options

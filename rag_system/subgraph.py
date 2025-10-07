@@ -85,6 +85,7 @@ def create_rag_subgraph_from_args(
     conn_string: str,
     embed_api_base: str,
     embed_api_key: str,
+    llm_api_base: Optional[str] = None,
     embed_model: str = "nvidia/nv-embed-v2",
     verify_ssl: bool = False,
     top_k: int = 10,
@@ -98,6 +99,7 @@ def create_rag_subgraph_from_args(
         conn_string: PostgreSQL connection string
         embed_api_base: Embedding API base URL
         embed_api_key: Embedding API key
+        llm_api_base: (Optional) LLM/Chat model API base URL. Falls back to embed_api_base.
         embed_model: Embedding model name
         verify_ssl: Whether to verify SSL certificates
         top_k: Number of documents to retrieve
@@ -110,6 +112,7 @@ def create_rag_subgraph_from_args(
     config = RAGConfig(
         conn_string=conn_string,
         embed_api_base=embed_api_base,
+        llm_api_base=llm_api_base,
         embed_api_key=embed_api_key,
         embed_model=embed_model,
         verify_ssl=verify_ssl,
@@ -142,10 +145,15 @@ def test_subgraph_standalone(question: str, config: RAGConfig):
         follow_redirects=True,
         timeout=httpx.Timeout(120.0, connect=10.0)
     )
+    
+    # Use the dedicated LLM API base if provided, otherwise fallback to the embedding base
+    api_base = config.llm_api_base or config.embed_api_base
+    log(f"Initializing ChatOpenAI for subgraph test with API base: {api_base}")
+
     llm = ChatOpenAI(
         model=config.chat_model,
         openai_api_key=config.embed_api_key,
-        openai_api_base=config.embed_api_base,
+        openai_api_base=api_base,
         temperature=config.temperature,
         http_client=client
     )

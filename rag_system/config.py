@@ -74,13 +74,14 @@ class RAGConfig:
 
     # API settings
     embed_api_base: Optional[str] = None
+    llm_api_base: Optional[str] = None  # Separate base for LLM
     embed_api_key: Optional[str] = None
 
     # SSL settings
     verify_ssl: bool = False
 
     def __post_init__(self):
-        """Validate configuration values."""
+        """Validate configuration values and load from environment if not set."""
         # Validate top_k
         if not MIN_TOP_K <= self.top_k <= MAX_TOP_K:
             raise ValueError(
@@ -101,15 +102,23 @@ class RAGConfig:
         if not self.embed_api_base:
             self.embed_api_base = os.environ.get("EMBED_API_BASE")
 
+        if not self.llm_api_base:
+            # Fallback to embed_api_base if llm_api_base is not explicitly set
+            self.llm_api_base = os.environ.get("LLM_API_BASE", self.embed_api_base)
+
         if not self.embed_api_key:
             self.embed_api_key = os.environ.get("EMBED_API_KEY")
 
     @classmethod
     def from_env(cls) -> "RAGConfig":
         """Create configuration from environment variables."""
+        embed_base = os.environ.get("EMBED_API_BASE")
+        llm_base = os.environ.get("LLM_API_BASE", embed_base) # Fallback
+
         return cls(
             conn_string=os.environ.get("PGVECTOR_URL"),
-            embed_api_base=os.environ.get("EMBED_API_BASE"),
+            embed_api_base=embed_base,
+            llm_api_base=llm_base,
             embed_api_key=os.environ.get("EMBED_API_KEY"),
             embed_model=os.environ.get("EMBED_MODEL_NAME", DEFAULT_EMBED_MODEL),
             chat_model=os.environ.get("CHAT_MODEL_NAME", DEFAULT_CHAT_MODEL),
@@ -121,5 +130,7 @@ class RAGConfig:
             raise ValueError("Database connection string is required")
         if not self.embed_api_base:
             raise ValueError("Embedding API base URL is required")
+        if not self.llm_api_base:
+            raise ValueError("LLM API base URL is required")
         if not self.embed_api_key:
             raise ValueError("API key is required")
