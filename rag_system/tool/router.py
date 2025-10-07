@@ -5,20 +5,20 @@ from langchain_openai import ChatOpenAI
 from ..common import log
 from ..build.db_utils import get_collection_stats
 
-ROUTER_PROMPT_TEMPLATE = """你是一個設計領域的專家路由系統。根據工程師的問題和可用的設計領域資料庫列表，你的任務是選擇最相關的一個領域來回答問題。
+ROUTER_PROMPT_TEMPLATE = """You are an expert routing system for design domains. Based on the engineer's question and the list of available design domain databases, your task is to select the most relevant domain to answer the question.
 
-工程師問題: "{query}"
+Engineer's Question: "{query}"
 
-可用的設計領域及其文件數量:
+Available Design Domains and Document Counts:
 {collections_info}
 
-**路由規則：**
-1. 優先選擇文件數量 > 0 的領域
-2. 如果多個領域都有文件，選擇最相關的
-3. 如果所有領域都沒有文件，返回文件數最多的領域名稱
-4. 只回傳領域名稱，不要包含其他文字
+**Routing Rules:**
+1. Prioritize domains with document count > 0
+2. If multiple domains have documents, select the most relevant one
+3. If all domains have no documents, return the domain name with the highest count
+4. Return ONLY the domain name, no additional text
 
-請只回傳最適合的設計領域名稱。"""
+**Output the most suitable design domain name in Traditional Chinese (zh-TW).**"""
 
 def create_router_tool(llm: ChatOpenAI, conn_str: str) -> Callable:
     """Create a design area routing tool for DATCOM assistant.
