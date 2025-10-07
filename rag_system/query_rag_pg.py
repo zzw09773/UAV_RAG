@@ -21,6 +21,7 @@ from .common import log, set_quiet_mode
 from .state import GraphState
 from .config import RAGConfig, DEFAULT_TOP_K
 from .tool import create_retrieve_tool, create_router_tool, create_metadata_search_tool
+from .tool.calculator import create_calculator_tool
 from .tool.shared import get_vectorstore
 from .node import create_agent_node
 from .agent import build_workflow
@@ -116,7 +117,8 @@ class RagApplication:
         metadata_search_tool = create_metadata_search_tool(
             conn_str=self.args.conn
         )
-        tools = [router_tool, retrieve_tool, metadata_search_tool]
+        calculator_tool = create_calculator_tool()
+        tools = [router_tool, retrieve_tool, metadata_search_tool, calculator_tool]
 
         # Create agent node
         agent_node = create_agent_node(self.llm, tools)
@@ -133,10 +135,11 @@ class RagApplication:
             initial_state: GraphState = {"question": question, "generation": ""}
             try:
                 # Invoke with increased recursion limit for complex ReAct reasoning
-                # DATCOM queries may require: router → retrieve → evaluate → answer
+                # Complex DATCOM file generation may require extensive tool calls:
+                # router → retrieve (multiple) → calculate → format → validate
                 final_state = graph.invoke(
                     initial_state,
-                    config={"recursion_limit": 50}
+                    config={"recursion_limit": 100}
                 )
                 generation = final_state.get('generation', '')
                 if generation:

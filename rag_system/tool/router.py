@@ -3,23 +3,22 @@ from typing import Callable, List
 from langchain.tools import tool
 from langchain_openai import ChatOpenAI
 from ..common import log
-from ..build.db_utils import get_collection_names
+from ..build.db_utils import get_collection_stats
 
-ROUTER_PROMPT_TEMPLATE = """你是一個戰機設計領域的專家路由系統。根據工程師的問題和可用的設計領域資料庫列表，你的任務是選擇最相關的一個領域來回答問題。
+ROUTER_PROMPT_TEMPLATE = """你是一個設計領域的專家路由系統。根據工程師的問題和可用的設計領域資料庫列表，你的任務是選擇最相關的一個領域來回答問題。
 
 工程師問題: "{query}"
 
-可用的設計領域:
-{collections}
+可用的設計領域及其文件數量:
+{collections_info}
 
-設計領域說明：
-- 空氣動力學: 機翼設計、升力係數、阻力分析、風洞數據、氣動外型
-- 航電系統: 飛控系統、雷達、導航、感測器、航電架構、軟體程式碼
-- 材料科學: 複合材料、合金、結構強度、耐熱材料、材料測試數據
-- 武器掛載: 飛彈掛架、武器整合、電子作戰系統、掛載配置
-- 推進系統: 引擎性能、推力向量、燃油系統、進氣道設計
+**路由規則：**
+1. 優先選擇文件數量 > 0 的領域
+2. 如果多個領域都有文件，選擇最相關的
+3. 如果所有領域都沒有文件，返回文件數最多的領域名稱
+4. 只回傳領域名稱，不要包含其他文字
 
-請只回傳最適合的設計領域名稱，不要包含任何其他文字或解釋。"""
+請只回傳最適合的設計領域名稱。"""
 
 def create_router_tool(llm: ChatOpenAI, conn_str: str) -> Callable:
     """Create a design area routing tool for DATCOM assistant.
@@ -36,8 +35,8 @@ def create_router_tool(llm: ChatOpenAI, conn_str: str) -> Callable:
         """Select the most relevant design area to answer an engineer's query.
 
         Use this tool FIRST to decide which design area database to search in.
-        Based on the engineer's query, this tool will determine the most appropriate
-        aircraft design domain (aerodynamics, avionics, materials, weapons, propulsion).
+        This tool will analyze available collections and their document counts
+        to select the most appropriate one.
 
         Args:
             query: The engineer's original query.
@@ -49,20 +48,31 @@ def create_router_tool(llm: ChatOpenAI, conn_str: str) -> Callable:
         log(f"Routing engineer query: '{query}'")
 
         try:
-            collection_list = get_collection_names(conn_str)
-            if not collection_list:
+            # Get collection statistics
+            stats = get_collection_stats(conn_str)
+            if not stats:
                 log("No design areas found in the database.")
-                return "錯誤: 資料庫中沒有找到任何設計領域。請先建立『空氣動力學』、『航電系統』、『材料科學』、『武器掛載』或『推進系統』等領域的資料庫。"
+                return "錯誤: 資料庫中沒有找到任何設計領域。請先建立資料庫。"
 
-            log(f"Found design areas: {collection_list}")
+            log(f"Found design areas with stats: {stats}")
 
-            # Format the list for the prompt
-            formatted_collections = "\n".join([f"- {name}" for name in collection_list])
+            # Filter to only non-empty collections
+            non_empty = [s for s in stats if s['doc_count'] > 0]
+
+            if not non_empty:
+                log("All collections are empty. Returning error.")
+                return "錯誤: 所有設計領域資料庫都是空的。請先匯入文件。"
+
+            # Format the collection info for the prompt
+            collections_info = "\n".join([
+                f"- {s['name']} ({s['doc_count']} 個文件)"
+                for s in stats
+            ])
 
             # Create the prompt for the router LLM
             prompt = ROUTER_PROMPT_TEMPLATE.format(
                 query=query,
-                collections=formatted_collections
+                collections_info=collections_info
             )
 
             # Ask the LLM to make a choice
@@ -70,13 +80,14 @@ def create_router_tool(llm: ChatOpenAI, conn_str: str) -> Callable:
             selected_collection = response.content.strip()
 
             # Validate the LLM's choice
-            if selected_collection in collection_list:
+            collection_names = [s['name'] for s in stats]
+            if selected_collection in collection_names:
                 log(f"Router selected design area: '{selected_collection}'")
                 return selected_collection
             else:
-                log(f"Router selected an invalid design area: '{selected_collection}'. Falling back to first available.")
-                # Fallback strategy: return the first design area if LLM hallucinates
-                return collection_list[0]
+                log(f"Router selected invalid area: '{selected_collection}'. Using collection with most docs.")
+                # Fallback: return the collection with the most documents
+                return non_empty[0]['name']
 
         except Exception as e:
             error_msg = f"設計領域路由時發生錯誤: {str(e)}"
