@@ -182,7 +182,7 @@ if __name__ == "__main__":
     config.validate()
 
     # Run test
-    question = "陸海空軍懲罰法第24條"
+    question = "FLTCON namelist 用來定義什麼？"
     result = test_subgraph_standalone(question, config)
 
     print("\n=== Test Result ===")
