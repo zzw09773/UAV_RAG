@@ -16,11 +16,13 @@ class GraphState(MessagesState):
         generation: The final generated answer with citations
         collection: Selected collection name (from router tool)
         retrieved_docs: Documents retrieved from vectorstore
+        intent: Routing intent (datcom_generation or general_query)
     """
     question: str = ""
     generation: str = ""
     collection: str = ""
     retrieved_docs: list = []
+    intent: str = ""
 
 
 # Backward compatibility: TypedDict version for legacy code

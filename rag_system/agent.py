@@ -1,37 +1,60 @@
 """LangGraph workflow orchestration for RAG agent."""
-from typing import Callable
+from typing import Callable, Literal
 from langgraph.graph import END, StateGraph
 from .state import GraphState
 
 
-def build_workflow(agent_node: Callable) -> StateGraph:
-    """Build the LangGraph workflow with a single ReAct agent node.
+def should_route_to_datcom(state: GraphState) -> Literal["datcom_sequence", "general_agent"]:
+    """Router function to decide the next node based on intent."""
+    if state.get("intent") == "datcom_generation":
+        return "datcom_sequence"
+    return "general_agent"
 
-    This creates a minimal workflow with:
-    - Entry point → agent_node → END
 
-    The agent node handles all logic:
-    - Document retrieval (via tools)
-    - Reasoning and evaluation (via ReAct)
-    - Answer generation with citations
+def build_workflow(
+    router_node: Callable,
+    datcom_node: Callable,
+    general_agent_node: Callable
+) -> StateGraph:
+    """Build the LangGraph workflow with a router and specialized nodes.
+
+    This creates a branching workflow:
+    - Entry point -> router_node
+    - router_node -> datcom_node (if intent is datcom_generation) -> END
+    - router_node -> general_agent_node (if intent is general_query) -> END
 
     Args:
-        agent_node: The ReAct agent node function
+        router_node: The node that determines the user's intent.
+        datcom_node: The node that runs the fixed DATCOM generation sequence.
+        general_agent_node: The ReAct agent node for all other general queries.
 
     Returns:
-        Compiled StateGraph ready for execution
+        Compiled StateGraph ready for execution.
     """
     # Initialize the workflow with GraphState
     workflow = StateGraph(GraphState)
 
-    # Add the single agent node
-    workflow.add_node("agent", agent_node)
+    # Add the nodes
+    workflow.add_node("router", router_node)
+    workflow.add_node("datcom_sequence", datcom_node)
+    workflow.add_node("general_agent", general_agent_node)
 
     # Set up the workflow graph
-    # Entry point → agent → END
-    workflow.set_entry_point("agent")
-    workflow.add_edge("agent", END)
+    workflow.set_entry_point("router")
+
+    # Add the conditional routing
+    workflow.add_conditional_edges(
+        "router",
+        should_route_to_datcom,
+        {
+            "datcom_sequence": "datcom_sequence",
+            "general_agent": "general_agent",
+        },
+    )
+
+    # Add edges from the specialized nodes to the end
+    workflow.add_edge("datcom_sequence", END)
+    workflow.add_edge("general_agent", END)
 
     # Compile with increased recursion limit for complex ReAct reasoning
-    # The agent may need multiple tool calls (router → retrieve → evaluate → answer)
     return workflow.compile()

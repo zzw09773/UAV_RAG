@@ -11,6 +11,8 @@ from .state import GraphState
 from .config import RAGConfig
 from .tool import create_retrieve_tool, create_router_tool, create_metadata_search_tool, create_datcom_calculator_tools
 from .node import create_agent_node
+from .router_node import create_intent_router_node
+from .datcom_node import create_datcom_sequence_node
 from .agent import build_workflow
 from .common import log
 
@@ -32,51 +34,43 @@ def create_rag_subgraph(
 
     Returns:
         Compiled StateGraph that can be used as a subgraph node
-
-    Example:
-        >>> from langchain_openai import ChatOpenAI
-        >>> from rag_system.config import RAGConfig
-        >>> from rag_system.subgraph import create_rag_subgraph
-        >>>
-        >>> llm = ChatOpenAI(model="gpt-4", temperature=0)
-        >>> config = RAGConfig.from_env()
-        >>> rag_subgraph = create_rag_subgraph(llm, config)
-        >>>
-        >>> # Use in parent graph
-        >>> from langgraph.graph import StateGraph, MessagesState
-        >>> parent_graph = StateGraph(MessagesState)
-        >>> parent_graph.add_node("rag_agent", rag_subgraph)
     """
     log(f"Creating RAG subgraph: {name}")
 
-    # Create tools with config
-    router_tool = create_router_tool(llm, config.conn_string)
-    retrieve_tool = create_retrieve_tool(
-        conn_str=config.conn_string,
-        embed_api_base=config.embed_api_base,
-        embed_api_key=config.embed_api_key,
-        embed_model=config.embed_model,
-        verify_ssl=config.verify_ssl,
-        top_k=config.top_k,
-        content_max_length=config.content_max_length
-    )
-    metadata_search_tool = create_metadata_search_tool(
-        conn_str=config.conn_string
-    )
+    # 1. Create tools
+    # Tools for the general agent
+    general_tools = [
+        create_router_tool(llm, config.conn_string),
+        create_retrieve_tool(
+            conn_str=config.conn_string,
+            embed_api_base=config.embed_api_base,
+            embed_api_key=config.embed_api_key,
+            embed_model=config.embed_model,
+            verify_ssl=config.verify_ssl,
+            top_k=config.top_k,
+            content_max_length=config.content_max_length
+        ),
+        create_metadata_search_tool(conn_str=config.conn_string)
+    ]
     
-    # Create DATCOM calculator tools
+    # DATCOM tools are used by both the general agent (for simple queries)
+    # and the specialized DATCOM node.
     datcom_tools = create_datcom_calculator_tools()
-    
-    # Combine all tools
-    tools = [router_tool, retrieve_tool, metadata_search_tool] + datcom_tools
+    all_tools = general_tools + datcom_tools
 
-    # Create agent node
-    agent_node = create_agent_node(llm, tools)
+    # 2. Create nodes
+    router_node = create_intent_router_node(llm)
+    datcom_node = create_datcom_sequence_node(llm)
+    general_agent_node = create_agent_node(llm, all_tools)
 
-    # Build and compile workflow
-    workflow = build_workflow(agent_node)
+    # 3. Build and compile the branching workflow
+    workflow = build_workflow(
+        router_node=router_node,
+        datcom_node=datcom_node,
+        general_agent_node=general_agent_node
+    )
 
-    log(f"RAG subgraph '{name}' created successfully")
+    log(f"RAG subgraph '{name}' created successfully with routing")
     return workflow
 
 
@@ -92,23 +86,7 @@ def create_rag_subgraph_from_args(
     content_max_length: int = 800,
     name: str = "rag_agent"
 ) -> StateGraph:
-    """Create RAG subgraph from individual arguments (convenience wrapper).
-
-    Args:
-        llm: The language model to use
-        conn_string: PostgreSQL connection string
-        embed_api_base: Embedding API base URL
-        embed_api_key: Embedding API key
-        llm_api_base: (Optional) LLM/Chat model API base URL. Falls back to embed_api_base.
-        embed_model: Embedding model name
-        verify_ssl: Whether to verify SSL certificates
-        top_k: Number of documents to retrieve
-        content_max_length: Max content length for retrieved docs
-        name: Subgraph name
-
-    Returns:
-        Compiled StateGraph ready for use as subgraph
-    """
+    """Create RAG subgraph from individual arguments (convenience wrapper)."""
     config = RAGConfig(
         conn_string=conn_string,
         embed_api_base=embed_api_base,
@@ -125,15 +103,7 @@ def create_rag_subgraph_from_args(
 
 # Convenience function for testing/debugging
 def test_subgraph_standalone(question: str, config: RAGConfig):
-    """Test the subgraph in standalone mode.
-
-    Args:
-        question: Question to ask
-        config: RAG configuration
-
-    Returns:
-        Final state after processing
-    """
+    """Test the subgraph in standalone mode."""
     import httpx
     from .common import set_quiet_mode
 
@@ -146,7 +116,6 @@ def test_subgraph_standalone(question: str, config: RAGConfig):
         timeout=httpx.Timeout(120.0, connect=10.0)
     )
     
-    # Use the dedicated LLM API base if provided, otherwise fallback to the embedding base
     api_base = config.llm_api_base or config.embed_api_base
     log(f"Initializing ChatOpenAI for subgraph test with API base: {api_base}")
 
@@ -165,7 +134,7 @@ def test_subgraph_standalone(question: str, config: RAGConfig):
     initial_state = {
         "question": question,
         "generation": "",
-        "messages": []
+        "messages": [("user", question)] # Initialize messages for the router
     }
 
     log(f"Testing subgraph with question: {question}")
@@ -189,11 +158,22 @@ if __name__ == "__main__":
     config = RAGConfig.from_env()
     config.validate()
 
-    # Run test
-    question = "FLTCON namelist 用來定義什麼？"
-    result = test_subgraph_standalone(question, config)
+    # Test with a general question
+    print("--- TESTING GENERAL QUERY ---")
+    general_question = "FLTCON namelist 用來定義什麼？"
+    general_result = test_subgraph_standalone(general_question, config)
+    print("\n=== General Test Result ===")
+    print(f"Question: {general_result.get('question', 'N/A')}")
+    print(f"Answer: {general_result.get('generation', 'N/A')}")
 
-    print("\n=== Test Result ===")
-    print(f"Question: {result.get('question', 'N/A')}")
-    print(f"Answer: {result.get('generation', 'N/A')}")
-    print(f"Messages: {len(result.get('messages', []))} messages")
+    # Test with a DATCOM generation question
+    print("\n--- TESTING DATCOM GENERATION QUERY ---")
+    datcom_question = """根據參數生成完整 DATCOM .dat:
+機翼: S=530 ft², A=2.8, λ=0.3, 後掠角45°
+飛行: Mach 0.8, 高度10000 ft, 攻角-2到10度每2度, 重量40000 lbs  
+機身: 長63 ft, 最大直徑3 ft
+位置: XCG=25 ft, XW=18.5 ft, XH=49 ft"""
+    datcom_result = test_subgraph_standalone(datcom_question, config)
+    print("\n=== DATCOM Test Result ===")
+    print(f"Question: {datcom_question}")
+    print(f"Answer: {datcom_result.get('generation', 'N/A')}")
