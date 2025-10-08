@@ -112,23 +112,16 @@ echo ""
 collection_exists() {
   local collection_name="$1"
 
-  # Find PostgreSQL container (try multiple methods)
-  local container_id=$(docker compose ps -q 2>/dev/null | head -1)
-  if [ -z "$container_id" ]; then
-    # Fallback: search by image
-    container_id=$(docker ps --filter "ancestor=pgvector/pgvector:0.8.1-pg17-trixie" --format "{{.ID}}" | head -1)
-  fi
+  # Use Python to check collection existence (works without Docker)
+  local result=$(python3 -c "
+from rag_system.build.db_utils import get_collection_names
+import os
+conn_str = os.getenv('PGVECTOR_URL')
+collections = get_collection_names(conn_str)
+print('1' if '$collection_name' in collections else '0')
+" 2>/dev/null || echo "0")
 
-  if [ -z "$container_id" ]; then
-    # Container not running, assume collection doesn't exist
-    return 1
-  fi
-
-  # Query database for collection
-  local result=$(docker exec "$container_id" \
-    psql -U postgres -tAc "SELECT COUNT(*) FROM langchain_pg_collection WHERE name='$collection_name';" 2>/dev/null || echo "0")
-
-  [ "$result" -gt 0 ]
+  [ "$result" = "1" ]
 }
 
 # Counters

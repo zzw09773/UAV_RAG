@@ -239,7 +239,7 @@ def create_datcom_sequence_node(llm: ChatOpenAI) -> callable:
         tool_responses.append({"name": "convert_wing_to_datcom", "content": response})
 
         log("Calling generate_fltcon_matrix")
-        # Convert alpha_degrees list to alpha_range tuple if provided as list
+        # Convert alpha_degrees list to alpha_range list if provided
         if params.alpha_degrees:
             # If we have a list, infer the range
             alphas = sorted(params.alpha_degrees)
@@ -248,13 +248,13 @@ def create_datcom_sequence_node(llm: ChatOpenAI) -> callable:
                 alpha_end = alphas[-1]
                 # Try to infer step size
                 alpha_step = alphas[1] - alphas[0] if len(alphas) > 1 else 2.0
-                alpha_range = (alpha_start, alpha_end, alpha_step)
+                alpha_range = [alpha_start, alpha_end, alpha_step]
             else:
                 # Single value, use as both start and end with step=1
-                alpha_range = (alphas[0], alphas[0], 1.0)
+                alpha_range = [alphas[0], alphas[0], 1.0]
         else:
             # Default range if not specified
-            alpha_range = (-2.0, 10.0, 2.0)
+            alpha_range = [-2.0, 10.0, 2.0]
         
         response = tools['generate_fltcon_matrix'].invoke({
             "mach_numbers": params.mach_numbers, 

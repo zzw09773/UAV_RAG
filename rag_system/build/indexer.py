@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 
 # Lazy-load langchain components to speed up CLI responsiveness
 try:
-    from langchain_postgres import PGVector
+    from langchain.vectorstores.pgvector import PGVector
 except ImportError:
     PGVector = None
 
@@ -151,11 +151,16 @@ class Indexer:
     def _embed_and_store(self, chunks: List[Dict], collection_name: str):
         """Embeds chunks and stores them in the vector database."""
         if PGVector is None:
-            raise ImportError("langchain_postgres is not installed. Cannot proceed with embedding.")
+            raise ImportError("langchain.vectorstores.pgvector.PGVector is not installed. Cannot proceed with embedding.")
         
         log(f"Embedding chunks for {collection_name}...")
         try:
-            vs = PGVector(embeddings=self.embedder, collection_name=collection_name, connection=self.config.conn)
+            vs = PGVector(
+                embedding_function=self.embedder, 
+                collection_name=collection_name, 
+                connection_string=self.config.conn,
+                use_jsonb=True  # 使用 JSONB 儲存 metadata,提升查詢效能
+            )
             
             texts = [c["content"] for c in chunks]
             metadatas = [{k: v for k, v in c.items() if k != "content"} for c in chunks]

@@ -298,7 +298,7 @@ def define_body_geometry(
 def generate_fltcon_matrix(
     mach_numbers: List[float],
     altitudes: List[float],
-    alpha_range: Tuple[float, float, float],
+    alpha_range: List[float],
     weight: float,
     loop_mode: float = 2.0
 ) -> Dict[str, Any]:
@@ -307,7 +307,7 @@ def generate_fltcon_matrix(
     Args:
         mach_numbers: A list of Mach numbers.
         altitudes: A list of altitudes (ft).
-        alpha_range: A tuple for the angle of attack schedule (start, end, step) in degrees.
+        alpha_range: A list of three values [start, end, step] for angle of attack in degrees.
         weight: Aircraft weight (lbs).
         loop_mode: (Optional) Loop mode for analysis. Defaults to 2.0 (Mach-priority).
 
@@ -315,6 +315,9 @@ def generate_fltcon_matrix(
         A dictionary containing DATCOM $FLTCON parameters.
     """
     log(f"Generating $FLTCON: M={mach_numbers}, ALT={altitudes}")
+    
+    if len(alpha_range) != 3:
+        return {"error": "alpha_range must contain exactly 3 values: [start, end, step]"}
     
     alpha_start, alpha_end, alpha_step = alpha_range
     alpha_schedule = []
@@ -443,7 +446,7 @@ if __name__ == "__main__":
     fltcon = generate_fltcon_matrix.invoke({
         "mach_numbers": [0.6, 0.8, 0.95],
         "altitudes": [10000, 20000, 30000],
-        "alpha_range": (-4, 14, 2),
+        "alpha_range": [-4, 14, 2],
         "weight": 38000,
         "loop_mode": 2
     })

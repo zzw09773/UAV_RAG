@@ -69,7 +69,7 @@ def get_collection_stats(conn_str: str) -> List[dict]:
         with psycopg2.connect(clean_conn_str) as conn:
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT c.name, COUNT(e.id) as doc_count
+                    SELECT c.name, COUNT(e.uuid) as doc_count
                     FROM langchain_pg_collection c
                     LEFT JOIN langchain_pg_embedding e ON c.uuid = e.collection_id
                     GROUP BY c.name
@@ -83,7 +83,7 @@ def get_collection_stats(conn_str: str) -> List[dict]:
 
 def delete_all_collections(conn_str: str):
     """Deletes all langchain_pg collections from the database."""
-    from langchain_postgres import PGVector
+    from langchain.vectorstores.pgvector import PGVector
     from langchain_core.embeddings import FakeEmbeddings
 
     collection_names = get_collection_names(conn_str)
@@ -99,9 +99,10 @@ def delete_all_collections(conn_str: str):
     for name in collection_names:
         try:
             store = PGVector(
-                connection=conn_str,
+                connection_string=conn_str,
                 collection_name=name,
-                embeddings=dummy_embedder,
+                embedding_function=dummy_embedder,
+                use_jsonb=True
             )
             store.delete_collection()
             log(f"Successfully deleted collection '{name}'.")

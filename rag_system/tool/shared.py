@@ -1,5 +1,5 @@
 """Shared utilities for RAG tools."""
-from langchain_postgres import PGVector
+from langchain.vectorstores.pgvector import PGVector
 from ..common import LocalApiEmbeddings
 
 
@@ -32,7 +32,8 @@ def get_vectorstore(
     )
 
     return PGVector(
-        embeddings=embedder,
+        embedding_function=embedder,
         collection_name=collection_name,
-        connection=connection_string
+        connection_string=connection_string,
+        use_jsonb=True  # 使用 JSONB 儲存 metadata
     )
