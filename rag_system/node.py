@@ -1,5 +1,6 @@
 """ReAct agent node implementation."""
 from typing import List, Callable
+import json
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from .state import GraphState
@@ -7,14 +8,19 @@ from .common import log
 
 
 # General purpose system prompt
-SYSTEM_PROMPT = """You are a helpful assistant expert in aerodynamic analysis and legal document search.
-You have access to a variety of tools to help answer user questions.
-Based on the user's query, select the best tool or sequence of tools to provide a comprehensive answer."""
+SYSTEM_PROMPT = """You are a helpful assistant for the UAV RAG system, focused on aerodynamic analysis and engineering documentation.
+
+Core requirements:
+1. Always ground every answer in retrieved documents. Do not rely on prior knowledge alone.
+2. First call the design_area_router tool to decide the collection, then use retrieve_datcom_archive (and metadata/search tools if needed) before you conclude.
+3. When you answer, clearly reference the supporting evidence. The answer must include a '參考資料' section listing every document via lines formatted as '來源: <檔名>…'.
+4. If no relevant documents are found, explicitly state that the archive lacks information instead of fabricating details.
+
+Follow a ReAct style reasoning loop: think → choose tool → observe → repeat → final answer."""
 
 
 def _build_standard_format(tool_responses, ai_responses):
     """Build standard formatted output for tool responses."""
-    import json
     answer_parts = ["# 🎯 查詢結果\n"]
     answer_parts.append("根據您的查詢,以下是各工具執行結果:\n")
     
@@ -56,6 +62,59 @@ def _build_standard_format(tool_responses, ai_responses):
     answer_parts.append(f"\n✅ 共執行了 {len(tool_responses)} 個工具,完成查詢。\n")
     
     return "".join(answer_parts)
+
+
+def _extract_sources_from_text(text: str) -> List[str]:
+    """Extract source entries from tool output text."""
+    if not isinstance(text, str):
+        return []
+
+    sources: List[str] = []
+    lines = text.splitlines()
+
+    for idx, raw_line in enumerate(lines):
+        line = raw_line.strip()
+        if not line.startswith("來源:"):
+            continue
+
+        entry = line.split("來源:", 1)[1].strip()
+
+        # Attach metadata information if present on the next line
+        if idx + 1 < len(lines):
+            next_line = lines[idx + 1].strip()
+            if next_line.startswith("Metadata:"):
+                metadata = next_line.split("Metadata:", 1)[1].strip()
+                if metadata:
+                    entry = f"{entry} ({metadata})"
+
+        if entry and entry not in sources:
+            sources.append(entry)
+
+    return sources
+
+
+def _collect_sources(tool_responses: List[dict]) -> List[str]:
+    """Collect unique source entries from all tool responses."""
+    collected: List[str] = []
+    seen = set()
+
+    for tr in tool_responses:
+        entries = _extract_sources_from_text(tr.get('content', ""))
+        for entry in entries:
+            if entry not in seen:
+                seen.add(entry)
+                collected.append(entry)
+
+    return collected
+
+
+def _build_sources_section(source_entries: List[str]) -> str:
+    """Build the citation section appended to final answers."""
+    if not source_entries:
+        return ""
+
+    bullets = "\n".join(f"- 來源: {entry}" for entry in source_entries)
+    return f"\n\n參考資料:\n{bullets}"
 
 
 def create_agent_node(llm: ChatOpenAI, tools: List[Callable]) -> Callable:
@@ -106,6 +165,10 @@ def create_agent_node(llm: ChatOpenAI, tools: List[Callable]) -> Callable:
                     final_answer = "執行了查詢,但沒有獲得有效的工具回應結果。"
             else:
                 final_answer = final_llm_answer
+
+            sources = _collect_sources(tool_responses)
+            if sources:
+                final_answer = final_answer.rstrip() + _build_sources_section(sources)
 
             return {
                 "generation": final_answer,
