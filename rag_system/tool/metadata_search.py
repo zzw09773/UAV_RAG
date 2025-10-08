@@ -92,7 +92,13 @@ def create_metadata_search_tool(conn_str: str) -> Callable:
             return "錯誤：必須至少提供一個搜尋條件 (article, page, 或 source)。"
 
         try:
-            engine = create_engine(conn_str)
+            # Add client_encoding to connection string
+            conn_str_utf8 = conn_str
+            if 'client_encoding' not in conn_str_utf8:
+                separator = '&' if '?' in conn_str_utf8 else '?'
+                conn_str_utf8 = f"{conn_str_utf8}{separator}client_encoding=utf8"
+            
+            engine = create_engine(conn_str_utf8)
 
             # Build dynamic SQL query
             where_clause = " AND ".join(conditions)

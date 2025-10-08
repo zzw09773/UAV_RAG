@@ -8,8 +8,14 @@ def ensure_pgvector(conn_str: str):
     try:
         # The psycopg2 driver doesn't need the 'postgresql+psycopg2' scheme.
         clean_conn_str = conn_str.replace("postgresql+psycopg2://", "postgresql://")
+        # Add client_encoding to ensure UTF-8
+        if 'client_encoding' not in clean_conn_str:
+            separator = '&' if '?' in clean_conn_str else '?'
+            clean_conn_str = f"{clean_conn_str}{separator}client_encoding=utf8"
+        
         with psycopg2.connect(clean_conn_str) as conn:
             conn.autocommit = True
+            conn.set_client_encoding('UTF8')  # Ensure UTF-8 encoding
             with conn.cursor() as cur:
                 cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
                 log("Ensured 'vector' extension exists.")
@@ -25,6 +31,7 @@ def wipe_collection(conn_str: str, name: str):
     try:
         clean_conn_str = conn_str.replace("postgresql+psycopg2://", "postgresql://")
         with psycopg2.connect(clean_conn_str) as conn:
+            conn.set_client_encoding('UTF8')  # Ensure UTF-8 encoding
             with conn.cursor() as cur:
                 # Find the collection UUID from its name.
                 cur.execute("SELECT uuid FROM langchain_pg_collection WHERE name = %s;", (name,))
@@ -49,6 +56,7 @@ def get_collection_names(conn_str: str) -> List[str]:
     try:
         clean_conn_str = conn_str.replace("postgresql+psycopg2://", "postgresql://")
         with psycopg2.connect(clean_conn_str) as conn:
+            conn.set_client_encoding('UTF8')  # Ensure UTF-8 encoding
             with conn.cursor() as cur:
                 cur.execute("SELECT name FROM langchain_pg_collection;")
                 rows = cur.fetchall()
@@ -67,6 +75,7 @@ def get_collection_stats(conn_str: str) -> List[dict]:
     try:
         clean_conn_str = conn_str.replace("postgresql+psycopg2://", "postgresql://")
         with psycopg2.connect(clean_conn_str) as conn:
+            conn.set_client_encoding('UTF8')  # Ensure UTF-8 encoding
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT c.name, COUNT(e.uuid) as doc_count

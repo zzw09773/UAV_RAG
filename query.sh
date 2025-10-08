@@ -7,6 +7,12 @@ set -e
 # Ensure we are in the correct directory (project root)
 cd "$(dirname "$0")"
 
+# Set UTF-8 environment (critical for internal network deployment)
+export LANG=zh_TW.UTF-8
+export LC_ALL=zh_TW.UTF-8
+export PYTHONIOENCODING=utf-8
+export PGCLIENTENCODING=UTF8
+
 # Load environment variables from .env file if it exists
 if [ -f .env ]; then
   set -a # automatically export all variables
